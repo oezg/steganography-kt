@@ -1,6 +1,5 @@
 package cryptography
 
-import java.awt.Color
 import java.io.File
 import java.io.IOException
 import javax.imageio.ImageIO
@@ -20,28 +19,51 @@ tailrec fun main() {
 }
 
 fun hide(): String {
-    println("Input image file:")
-    val inputFilename = readln()
-    println("Output image file:")
-    val outputFilename = readln()
+    val inputFilename = println("Input image file:").run { readln() }
+    val outputFilename = println("Output image file:").run { readln() }
+    val message = println("Message to hide:").run { readln() }
     val bufferedImage = try {
         ImageIO.read(File(inputFilename))
     } catch (e: IOException) {
-        return "Can't read input file!"
+        return "Can't read input file! ${e.message}"
     }
-    println("Input Image: $inputFilename")
-    for (x in 0 until bufferedImage.width) {
+
+    val messageByteArray = message.encodeToByteArray() + byteArrayOf(0, 0, 3)
+    val messageBitLength = messageByteArray.size * 8
+    if (messageBitLength > bufferedImage.width * bufferedImage.height) {
+        return "The input image is not large enough to hold this message."
+    }
+
+    val messageBitArray = byteToBits(messageByteArray)
+
+    loop@ for (x in 0 until bufferedImage.width) {
         for (y in 0 until bufferedImage.height) {
-            val color = Color(bufferedImage.getRGB(x, y))
-            val newColor = Color(color.red or 1, color.green or 1, color.blue or 1)
-            bufferedImage.setRGB(x, y, newColor.rgb)
+            val index = x * bufferedImage.width + y
+            if (index == messageBitLength) {
+                break@loop
+            }
+            val rgb = bufferedImage.getRGB(x, y)
+            val bit = messageBitArray[index]
+            val newRGB = rgb shr 1 shl 1 or bit
+            bufferedImage.setRGB(x, y,  newRGB)
         }
     }
+
     return try {
         ImageIO.write(bufferedImage, "png", File(outputFilename))
-        println("Output Image: $outputFilename")
-        "Image $outputFilename is saved."
+        "Message saved in $inputFilename image."
     } catch (e: IOException) {
-        "Can't write output file!"
+        "Can't write output file! ${e.message}"
     }
+}
+
+fun byteToBits(byteArray: ByteArray): IntArray {
+    val result = IntArray(byteArray.size * 8)
+    var i = 0
+    for (b in byteArray) {
+        for (bit in 7 downTo 0) {
+            result[i++] = b.toInt() shr bit and 1
+        }
+    }
+    return result
 }
