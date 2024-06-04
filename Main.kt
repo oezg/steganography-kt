@@ -8,7 +8,7 @@ tailrec fun main() {
     println("Task (hide, show, exit):")
     val output = when (val input = readln()) {
         "hide" -> hide()
-        "show" -> "Obtaining message from image."
+        "show" -> show()
         "exit" -> "Bye!"
         else -> "Wrong task: $input"
     }
@@ -16,6 +16,34 @@ tailrec fun main() {
     if (output != "Bye!") {
         main()
     }
+}
+
+fun show(): String {
+    val inputFilename = println("Input image file:").run { readln() }
+    val bufferedImage = try {
+        ImageIO.read(File(inputFilename))
+    } catch (e: IOException) {
+        return "Can't read input file! ${e.message}"
+    }
+
+    val messageBytes = mutableListOf<Byte>()
+    var tempByte = 0
+    var index = 0
+
+    loop@ for (y in 0 until bufferedImage.height) {
+        for (x in 0 until bufferedImage.width) {
+            tempByte = tempByte shl 1 or (bufferedImage.getRGB(x, y) and 1)
+            if (++index == 8) {
+                messageBytes.add(tempByte.toByte())
+                index = 0
+                tempByte = 0
+            }
+            if (messageBytes.takeLast(3) == listOf(0, 0, 3)) {
+                break@loop
+            }
+        }
+    }
+    return "Message: \n${messageBytes.toByteArray().decodeToString()}"
 }
 
 fun hide(): String {
@@ -36,9 +64,9 @@ fun hide(): String {
 
     val messageBitArray = byteToBits(messageByteArray)
 
-    loop@ for (x in 0 until bufferedImage.width) {
-        for (y in 0 until bufferedImage.height) {
-            val index = x * bufferedImage.width + y
+    loop@ for (y in 0 until bufferedImage.height) {
+        for (x in 0 until bufferedImage.width) {
+            val index = y * bufferedImage.height + x
             if (index == messageBitLength) {
                 break@loop
             }
@@ -59,10 +87,10 @@ fun hide(): String {
 
 fun byteToBits(byteArray: ByteArray): IntArray {
     val result = IntArray(byteArray.size * 8)
-    var i = 0
-    for (b in byteArray) {
-        for (bit in 7 downTo 0) {
-            result[i++] = b.toInt() shr bit and 1
+    var index = 0
+    for (byte in byteArray) {
+        for (positionFromLeft in 7 downTo 0) {
+            result[index++] = byte.toInt() shr positionFromLeft and 1
         }
     }
     return result
